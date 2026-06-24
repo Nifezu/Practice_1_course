@@ -4,19 +4,18 @@
 #include <time.h>
 #include <locale.h>
 #include <windows.h>
+#include <string.h>
 
-//Структура узла бинарного дерева
 struct TreeNode {
     int data; //значение узла
-    struct TreeNode* left;   //указатель на левое поддерево
-    struct TreeNode* right;   //указатель на правое поддерево
+    struct TreeNode* left; //указатель на левое поддерево
+    struct TreeNode* right;//указатель на правое поддерево
 };
 
-long long compareCount = 0;  //кол-во сравнений
-long long swapCount = 0;  //кол-во операций вставки
-double timeSec = 0;   //время сортировки
+long long compareCount = 0; //количество сравнений при вставке
+long long swapCount = 0; //количество вставок/извлечений
+double timeSec = 0; //время выполнения сортировки
 
-//Функция создания нового узла
 struct TreeNode* createNode(int value) {
     struct TreeNode* newNode = (struct TreeNode*)malloc(sizeof(struct TreeNode));
     if (newNode == NULL) {
@@ -28,7 +27,6 @@ struct TreeNode* createNode(int value) {
     newNode->right = NULL;
     return newNode;
 }
-//Итеративная вставка элемента в дерево
 struct TreeNode* insert(struct TreeNode* root, int value) {
     // Если дерево пустое, создаём корень
     if (root == NULL) {
@@ -40,47 +38,50 @@ struct TreeNode* insert(struct TreeNode* root, int value) {
 
     while (1) {
         compareCount++; //каждое сравнение с текущим узлом
+
         if (value < current->data) {
-            //в левое поддерево
+            // Идём в левое поддерево
             if (current->left == NULL) {
+                // Вставляем как левого потомка
                 current->left = createNode(value);
-                swapCount++;  //вставка левого потомка
+                swapCount++;
                 break;
             }
             else {
-                current = current->left;
+                current = current->left;//переходим влево
             }
         }
         else {
-            //в правое поддерево
+            //Идём в правое поддерево
             if (current->right == NULL) {
+                // Вставляем как правого потомка
                 current->right = createNode(value);
-                swapCount++; //вставка правого потомка
+                swapCount++;
                 break;
             }
             else {
-                current = current->right;
+                current = current->right; //переходим вправо
             }
         }
     }
-    return root;   //корень не меняется
+
+    return root; //корень не меняется
 }
-//Рекурсивный симметричный обход
 void inorder(struct TreeNode* root, int* result, int* index) {
-    if (root == NULL) return;
-    inorder(root->left, result, index);  //обход левого поддерева
-    result[(*index)++] = root->data;   //запись значения текущего узла
-    swapCount++;  //извлечение элемента
-    inorder(root->right, result, index);     //обход правого поддерева
+    if (root == NULL) return; //базовый случай рекурсии
+
+    inorder(root->left, result, index); //обход левого поддерева
+    result[(*index)++] = root->data;  //запись значения текущего узла
+    swapCount++;     //извлечение элемента
+    inorder(root->right, result, index);//обход правого поддерева
 }
-//Рекурсивное освобождение памяти дерева
+
 void freeTree(struct TreeNode* root) {
     if (root == NULL) return;
     freeTree(root->left);
     freeTree(root->right);
     free(root);
 }
-//Основная функция сортировки
 void binaryTreeSort(int* A, int n) {
     struct TreeNode* root = NULL;
     compareCount = 0;
@@ -90,25 +91,28 @@ void binaryTreeSort(int* A, int n) {
     for (int i = 0; i < n; i++) {
         root = insert(root, A[i]);
     }
-    //Получение отсортированного массива через обход
+    //получение отсортированного массива через симметричный обход
     int index = 0;
     inorder(root, A, &index);
+    // Освобождение памяти
     freeTree(root);
 }
-//Генерация случайного массива (диапазон -1000..1000)
-void generateArray(int* A, int n) {
+
+//генерация случайного массива
+void generateArray(int* A, int n, int minVal, int maxVal) {
     for (int i = 0; i < n; i++) {
-        A[i] = rand() % 2001 - 1000;
+        A[i] = rand() % (maxVal - minVal + 1) + minVal;
     }
 }
 
-// Запись массива в CSV-файл (числа через запятую)
+//запись в csv файл
 void writeToFile(int* A, int n, const char* filename) {
     FILE* f = fopen(filename, "w");
     if (f == NULL) {
         printf("Ошибка открытия файла %s!\n", filename);
         return;
     }
+    // Запись чисел через запятую
     for (int i = 0; i < n; i++) {
         fprintf(f, "%d", A[i]);
         if (i != n - 1) fprintf(f, ",");
@@ -117,7 +121,7 @@ void writeToFile(int* A, int n, const char* filename) {
     printf("Данные записаны в файл: %s\n", filename);
 }
 
-// Чтение массива из CSV-файла
+//чтение из файла
 int readFromFile(int* A, int maxSize, const char* filename) {
     FILE* f = fopen(filename, "r");
     if (f == NULL) {
@@ -126,17 +130,41 @@ int readFromFile(int* A, int maxSize, const char* filename) {
     }
     int count = 0;
     char buffer[100];
-    // Читаем числа, разделённые запятой или переводом строки
+    int lineNum = 0;
+
+    // Чтение чисел, разделённых запятой или переводом строки
     while (fscanf(f, "%[^,\n]%*c", buffer) != EOF && count < maxSize) {
+        lineNum++;
+
+        //Удаляем пробелы в начале и конце
+        char* p = buffer;
+        while (*p == ' ' || *p == '\t') p++;
+        int len = strlen(p);
+        while (len > 0 && (p[len - 1] == ' ' || p[len - 1] == '\t' || p[len - 1] == '\n' || p[len - 1] == '\r')) {
+            p[--len] = '\0';
+        }
+
+        // Проверка на пустое значение
+        if (strlen(p) == 0) {
+            printf("Предупреждение: пустое значение в строке %d, пропущено.\n", lineNum);
+            continue;
+        }
+
+        // Попытка преобразования в число
         int val;
-        if (sscanf(buffer, "%d", &val) == 1) {
+        if (sscanf(p, "%d", &val) == 1) {
             A[count++] = val;
         }
+        else {
+            printf("Предупреждение: некорректное значение '%s' в строке %d, пропущено.\n", p, lineNum);
+        }
     }
+
     fclose(f);
     return count;
 }
-//Вывод массива на экран в отформатированном виде
+
+//вывод массива на экран
 void printArray(int* A, int n) {
     printf("[");
     for (int i = 0; i < n; i++) {
@@ -145,17 +173,25 @@ void printArray(int* A, int n) {
     }
     printf("]\n");
 }
-//Сортировка вставками для сравнения производительности
+
+//сортировка вставками
 void insertionSort(int* A, int n) {
     for (int i = 1; i < n; i++) {
         int key = A[i];
         int j = i - 1;
+        
         while (j >= 0 && A[j] > key) {
             A[j + 1] = A[j];
             j--;
         }
         A[j + 1] = key;
     }
+}
+
+//очистка буфера 
+void clearInputBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) {}
 }
 
 //меню
@@ -172,19 +208,21 @@ void showMenu() {
 }
 
 int main() {
-    //Настройка кодировки для корректного отображения русского языка
+    // Настройка кодировки для русского языка
     SetConsoleCP(1251);
     SetConsoleOutputCP(1251);
     setlocale(LC_ALL, "Russian");
-    //Инициализация генератора случайных чисел
+
+    // Инициализация генератора случайных чисел
     srand((unsigned)time(NULL));
 
+    // Объявление переменных
     int A[10000];   //основной массив
     int sorted[10000];  //копия для сортировки
-    int size = 0;     //текущий размер
-    int choice;             //выбор пункта меню
-    clock_t start, end;     //для замера времени
-    char filename[100];     // имя файла
+    int size = 0;   //текущий размер массива
+    int choice;    //выбор пункта меню
+    clock_t start, end; //для замера времени
+    char filename[100]; //имя файла
 
     printf("Программа сортировки массива методом двоичного дерева.\n");
     printf("Для завершения работы закройте окно.\n");
@@ -192,8 +230,16 @@ int main() {
     // Бесконечный цикл меню
     do {
         showMenu();
-        scanf("%d", &choice);
 
+        // Проверка ввода выбора
+        if (scanf("%d", &choice) != 1) {
+            printf("Ошибка: введите число от 1 до 6!\n");
+            clearInputBuffer();
+            continue;
+        }
+        clearInputBuffer();
+
+        // Обработка выбора пользователя
         switch (choice) {
         case 1: {
             //Загрузка данных из CSV файла
@@ -206,14 +252,41 @@ int main() {
                 if (size > 20) printf("... (показано первые 20)\n");
             }
             else {
-                printf("Не удалось загрузить данные из файла!\n");
+                printf("Не удалось загрузить данные из файла или файл пуст!\n");
             }
             break;
         }
+
         case 2: {
             // Генерация случайного массива
+            int minVal, maxVal;
+
+            printf("Введите минимальное значение: ");
+            if (scanf("%d", &minVal) != 1) {
+                printf("Ошибка: необходимо ввести целое число!\n");
+                clearInputBuffer();
+                break;
+            }
+
+            printf("Введите максимальное значение: ");
+            if (scanf("%d", &maxVal) != 1) {
+                printf("Ошибка: необходимо ввести целое число!\n");
+                clearInputBuffer();
+                break;
+            }
+
+            // Проверка корректности диапазона
+            if (minVal > maxVal) {
+                printf("Ошибка: минимальное значение не может быть больше максимального!\n");
+                break;
+            }
             printf("Введите количество элементов: ");
-            scanf("%d", &size);
+            if (scanf("%d", &size) != 1) {
+                printf("Ошибка: необходимо ввести целое число!\n");
+                clearInputBuffer();
+                break;
+            }
+            // Проверка размера массива
             if (size > 10000) {
                 printf("Максимальный размер: 10000!\n");
                 break;
@@ -222,19 +295,21 @@ int main() {
                 printf("Размер должен быть больше 0!\n");
                 break;
             }
-            generateArray(A, size);
-            printf("Сгенерирован массив из %d элементов:\n", size);
+            // Генерация и вывод массива
+            generateArray(A, size, minVal, maxVal);
+            printf("Сгенерирован массив из %d элементов в диапазоне [%d, %d]:\n", size, minVal, maxVal);
             printArray(A, size < 20 ? size : 20);
             if (size > 20) printf("... (показано первые 20)\n");
             break;
         }
+
         case 3: {
-            //Сортировка
+            // Сортировка
             if (size == 0) {
                 printf("Нет данных для сортировки!\n");
                 break;
             }
-            //Копируем исходный массив
+            // Копируем исходный массив
             for (int i = 0; i < size; i++) sorted[i] = A[i];
 
             printf("Выполняется сортировка...\n");
@@ -247,12 +322,13 @@ int main() {
             printArray(sorted, size < 20 ? size : 20);
             if (size > 20) printf("... (показано первые 20)\n");
 
-            //Сохраняем результат обратно в A
+            // Сохраняем результат обратно в A
             for (int i = 0; i < size; i++) A[i] = sorted[i];
             break;
         }
+
         case 4: {
-            //Сохранение в CSV
+            // Сохранение в CSV
             if (size == 0) {
                 printf("Нет данных для сохранения!\n");
                 break;
@@ -262,8 +338,9 @@ int main() {
             writeToFile(A, size, filename);
             break;
         }
+
         case 5: {
-            //Показ статистики
+            // Вывод статистики
             if (size == 0) {
                 printf("Нет данных!\n");
                 break;
@@ -275,28 +352,33 @@ int main() {
             printf("Время: %.6f сек\n", timeSec);
             break;
         }
+
         case 6: {
-            //Сравнение с сортировкой вставками
+            // Сравнение с сортировкой вставками
             if (size == 0) {
                 printf("Нет данных для сравнения!\n");
                 break;
             }
-            //Копируем данные для обеих сортировок
+
+            // Копируем данные для обеих сортировок
             int ourSorted[10000], stdSorted[10000];
             for (int i = 0; i < size; i++) ourSorted[i] = A[i];
             for (int i = 0; i < size; i++) stdSorted[i] = A[i];
 
+            // Замер времени для двоичной сортировки
             clock_t t1, t2;
             t1 = clock();
             binaryTreeSort(ourSorted, size);
             t1 = clock() - t1;
             double ourTime = (double)t1 / CLOCKS_PER_SEC;
 
+            // Замер времени для сортировки вставками
             t2 = clock();
             insertionSort(stdSorted, size);
             t2 = clock() - t2;
             double stdTime = (double)t2 / CLOCKS_PER_SEC;
 
+            // Вывод результатов сравнения
             printf("Сравнение:\n");
             printf("Двоичная сортировка: %.6f сек\n", ourTime);
             printf("Сортировка вставками: %.6f сек\n", stdTime);
@@ -308,13 +390,14 @@ int main() {
                 printf("Время одинаковое.\n");
             break;
         }
+
         default:
             printf("Неверный выбор! Введите 1-6.\n");
         }
 
-        printf("\n"); //разделитель между операциями
+        printf("\n");
 
-    } while (1);  //выход только при закрытии окна
+    } while (1);  
 
     return 0;
 }
